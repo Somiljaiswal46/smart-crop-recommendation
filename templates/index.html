@@ -1,0 +1,1070 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AgriPulse — Intelligent Crop Recommendation</title>
+  <meta name="description" content="AI-powered crop recommendation system using soil and climate data to maximize agricultural yield.">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <style>
+    /* ─── Design Tokens ─── */
+    :root {
+      --bg-deep:       #071510;
+      --bg-mid:        #0c1f14;
+      --bg-card:       rgba(8, 20, 12, 0.82);
+      --bg-card-hover: rgba(10, 26, 15, 0.90);
+      --border:        rgba(74,222,128,0.12);
+      --border-hover:  rgba(74,222,128,0.45);
+      --green-bright:  #4ade80;
+      --green-mid:     #22c55e;
+      --green-dark:    #16a34a;
+      --gold:          #f59e0b;
+      --text-primary:  #f0fdf4;
+      --text-secondary:#bbf7d0;
+      --text-muted:    #86efac;
+      --shadow-glow:   0 0 40px rgba(74,222,128,0.10);
+      --radius-lg:     20px;
+      --radius-xl:     28px;
+      --transition:    all 0.35s cubic-bezier(0.4,0,0.2,1);
+    }
+
+    /* ─── Reset & Base ─── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', sans-serif;
+      /* Clean CSS gradient as primary background — no image visual noise */
+      background:
+        radial-gradient(ellipse 120% 80% at 10% -10%, rgba(22,101,52,0.55) 0%, transparent 50%),
+        radial-gradient(ellipse 80% 60% at 90% 110%, rgba(20,83,45,0.40) 0%, transparent 55%),
+        linear-gradient(170deg, #071510 0%, #0a1f14 35%, #071510 70%, #051209 100%);
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ─── Subtle background image layer — very dark, low opacity ─── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: url("{{ url_for('static', filename='bg.png') }}") center/cover no-repeat;
+      opacity: 0.07;   /* near-invisible — texture only, not visual */
+      z-index: -2;
+      filter: blur(2px) grayscale(0.6);
+    }
+    /* Extra dark overlay to absolutely prevent bleed-through */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: rgba(5, 14, 8, 0.65);
+      z-index: -1;
+      pointer-events: none;
+    }
+
+
+    /* ─── Navbar ─── */
+    .navbar {
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      padding: 16px 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(10,26,15,0.75);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+    }
+    .nav-logo {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--green-mid), var(--green-dark));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      box-shadow: 0 4px 14px rgba(34,197,94,0.35);
+    }
+    .nav-title {
+      font-family: 'Outfit', sans-serif;
+      font-weight: 700;
+      font-size: 1.3rem;
+      color: var(--text-primary);
+    }
+    .nav-badge {
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 50px;
+      background: rgba(74,222,128,0.12);
+      color: var(--green-bright);
+      border: 1px solid rgba(74,222,128,0.25);
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    /* ─── Page Layout ─── */
+    .page { max-width: 1060px; margin: 0 auto; padding: 50px 24px 80px; }
+
+    /* ─── Hero Section ─── */
+    .hero {
+      text-align: center;
+      margin-bottom: 56px;
+      animation: fadeUp 0.8s ease both;
+    }
+    .hero-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--green-bright);
+      margin-bottom: 18px;
+      padding: 6px 16px;
+      border-radius: 50px;
+      border: 1px solid rgba(74,222,128,0.25);
+      background: rgba(74,222,128,0.08);
+    }
+    .hero h1 {
+      font-family: 'Outfit', sans-serif;
+      font-size: clamp(2.2rem, 5vw, 3.4rem);
+      font-weight: 800;
+      line-height: 1.15;
+      margin-bottom: 18px;
+      background: linear-gradient(135deg, #ecfdf5 20%, #86efac 60%, #4ade80 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .hero p {
+      font-size: 1.1rem;
+      color: #9ca3af;
+      max-width: 560px;
+      margin: 0 auto;
+      line-height: 1.7;
+    }
+
+    /* ─── Stats Bar ─── */
+    .stats-bar {
+      display: flex;
+      justify-content: center;
+      gap: 40px;
+      flex-wrap: wrap;
+      margin-top: 36px;
+      padding-top: 36px;
+      border-top: 1px solid var(--border);
+    }
+    .stat-item { text-align: center; }
+    .stat-value {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: var(--green-bright);
+      line-height: 1;
+    }
+    .stat-label { font-size: 0.78rem; color: var(--text-muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+    /* ─── Form Glass Card ─── */
+    .form-glass {
+      background: rgba(8, 22, 13, 0.88);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid rgba(74,222,128,0.14);
+      border-radius: var(--radius-xl);
+      padding: 44px 48px;
+      box-shadow: 0 0 0 1px rgba(74,222,128,0.05) inset, 0 20px 60px rgba(0,0,0,0.6), var(--shadow-glow);
+      animation: fadeUp 0.9s 0.1s ease both;
+      margin-bottom: 36px;
+    }
+    .form-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 36px;
+      padding-bottom: 28px;
+      border-bottom: 1px solid var(--border);
+    }
+    .form-header-icon {
+      width: 46px;
+      height: 46px;
+      border-radius: 13px;
+      background: linear-gradient(135deg, rgba(74,222,128,0.2), rgba(34,197,94,0.1));
+      border: 1px solid rgba(74,222,128,0.25);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+    }
+    .form-header-text h2 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+    .form-header-text p { font-size: 0.85rem; color: var(--text-muted); margin-top: 2px; }
+
+    /* ─── Input Grid ─── */
+    .form-section-label {
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      color: var(--green-bright);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .form-section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+    .input-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+      margin-bottom: 24px;
+    }
+    .input-wrap { position: relative; }
+    .input-icon {
+      position: absolute;
+      left: 15px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 16px;
+      pointer-events: none;
+      z-index: 2;
+    }
+    .input-unit {
+      position: absolute;
+      right: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      pointer-events: none;
+    }
+    label.field-label {
+      display: block;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #bbf7d0;
+      margin-bottom: 8px;
+      letter-spacing: 0.3px;
+    }
+    input[type="number"] {
+      width: 100%;
+      background: rgba(5, 18, 9, 0.92);
+      border: 1.5px solid rgba(74,222,128,0.18);
+      border-radius: 12px;
+      padding: 13px 52px 13px 44px;
+      color: #f0fdf4;
+      font-size: 0.95rem;
+      font-family: 'Inter', sans-serif;
+      transition: var(--transition);
+      outline: none;
+    }
+    input[type="number"]::placeholder { color: #2d5a3d; }
+    input[type="number"]:focus {
+      border-color: var(--green-bright);
+      background: rgba(5, 18, 9, 0.98);
+      box-shadow: 0 0 0 4px rgba(74,222,128,0.12);
+    }
+    input[type="number"]::-webkit-outer-spin-button,
+    input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+    /* ─── Submit Button ─── */
+    .btn-predict {
+      width: 100%;
+      padding: 17px 32px;
+      border: none;
+      border-radius: 14px;
+      background: linear-gradient(135deg, var(--green-mid), var(--green-dark));
+      color: #fff;
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.05rem;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      transition: var(--transition);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      box-shadow: 0 6px 24px rgba(34,197,94,0.35), 0 2px 8px rgba(0,0,0,0.3);
+      margin-top: 10px;
+    }
+    .btn-predict::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.15), transparent);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .btn-predict:hover { transform: translateY(-2px); box-shadow: 0 12px 32px rgba(34,197,94,0.45); }
+    .btn-predict:hover::after { opacity: 1; }
+    .btn-predict:active { transform: translateY(0); }
+
+    /* ─── Loading Spinner ─── */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner {
+      display: none;
+      width: 20px;
+      height: 20px;
+      border: 2.5px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    /* ─── Result Section ─── */
+    .result-section {
+      animation: fadeUp 0.7s ease both;
+      margin-top: 0;
+    }
+    .result-grid { display: grid; grid-template-columns: 1fr 1.8fr; gap: 24px; align-items: start; }
+
+    /* ─── Crop Card (Left) ─── */
+    .crop-card {
+      background: rgba(8, 22, 13, 0.90);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(74,222,128,0.16);
+      border-radius: var(--radius-xl);
+      overflow: hidden;
+      box-shadow: var(--shadow-glow), 0 16px 40px rgba(0,0,0,0.55);
+      transition: var(--transition);
+    }
+    .crop-card:hover {
+      transform: translateY(-6px) scale(1.01);
+      border-color: rgba(74,222,128,0.45);
+      box-shadow: 0 24px 50px rgba(0,0,0,0.65), 0 0 35px rgba(74,222,128,0.22);
+    }
+    .crop-image-wrap {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 4/3;
+      overflow: hidden;
+    }
+    .crop-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.6s ease;
+    }
+    .crop-card:hover .crop-img { transform: scale(1.04); }
+    .crop-image-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to top, rgba(10,26,15,0.95) 0%, rgba(10,26,15,0.2) 50%, transparent 100%);
+    }
+    .crop-badge {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      background: rgba(74,222,128,0.15);
+      border: 1px solid rgba(74,222,128,0.4);
+      color: var(--green-bright);
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      padding: 5px 12px;
+      border-radius: 50px;
+      backdrop-filter: blur(8px);
+    }
+    .crop-card-body { padding: 22px 24px 24px; }
+    .crop-name {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.9rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      line-height: 1.1;
+      margin-bottom: 6px;
+    }
+    .crop-subtitle { font-size: 0.82rem; color: var(--text-muted); margin-bottom: 18px; }
+
+    /* Confidence Ring */
+    .confidence-wrap { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; }
+    .ring-svg { width: 60px; height: 60px; transform: rotate(-90deg); }
+    .ring-bg { fill: none; stroke: rgba(74,222,128,0.12); stroke-width: 5; }
+    .ring-fill {
+      fill: none;
+      stroke: var(--green-bright);
+      stroke-width: 5;
+      stroke-linecap: round;
+      stroke-dasharray: 163; /* 2π × r=26 */
+      stroke-dashoffset: 16; /* 10% gap to show ~99% */
+      transition: stroke-dashoffset 1.2s ease;
+      filter: drop-shadow(0 0 4px rgba(74,222,128,0.5));
+    }
+    .ring-text { font-size: 0.7rem; fill: var(--green-bright); font-weight: 700; transform: rotate(90deg); transform-origin: 30px 30px; }
+    .confidence-detail h4 { font-family:'Outfit',sans-serif; font-size:1.05rem; font-weight:700; color:var(--green-bright); }
+    .confidence-detail p { font-size:0.78rem; color:var(--text-muted); margin-top:2px; }
+
+    .crop-action-btn {
+      display: block;
+      text-align: center;
+      padding: 11px;
+      border-radius: 10px;
+      border: 1.5px solid rgba(74,222,128,0.25);
+      color: var(--green-bright);
+      font-size: 0.82rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: var(--transition);
+      background: rgba(74,222,128,0.05);
+    }
+    .crop-action-btn:hover { background: rgba(74,222,128,0.12); border-color: rgba(74,222,128,0.5); color: var(--green-bright); }
+
+    /* ─── Insights Card (Right) ─── */
+    .insights-card {
+      background: rgba(8, 22, 13, 0.90);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(74,222,128,0.16);
+      border-radius: var(--radius-xl);
+      overflow: hidden;
+      box-shadow: var(--shadow-glow), 0 16px 40px rgba(0,0,0,0.55);
+      transition: var(--transition);
+    }
+    .insights-card:hover {
+      transform: translateY(-6px) scale(1.01);
+      border-color: rgba(74,222,128,0.45);
+      box-shadow: 0 24px 50px rgba(0,0,0,0.65), 0 0 35px rgba(74,222,128,0.22);
+    }
+    .insights-header {
+      padding: 22px 28px 18px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .insights-header h3 { font-family:'Outfit',sans-serif; font-size:1.05rem; font-weight:700; color:var(--text-primary); }
+    .insights-header span { font-size:0.75rem; color:var(--text-muted); }
+    .map-container { height: 320px; }
+    #map { height: 100%; width: 100%; }
+    .map-legend-bar {
+      padding: 14px 28px;
+      display: flex;
+      gap: 20px;
+      border-top: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+    .legend-pill {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 0.75rem;
+      color: #9ca3af;
+    }
+    .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+    /* ─── Soil Profile Cards ─── */
+    .soil-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      margin-top: 24px;
+      animation: fadeUp 1s 0.2s ease both;
+    }
+    .soil-mini {
+      background: rgba(8, 22, 13, 0.88);
+      border: 1px solid rgba(74,222,128,0.14);
+      border-radius: 14px;
+      padding: 18px 16px;
+      text-align: center;
+      transition: var(--transition);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+    }
+    .soil-mini:hover {
+      border-color: var(--border-hover);
+      transform: translateY(-3px);
+      box-shadow: 0 8px 24px rgba(74,222,128,0.12);
+      background: rgba(10, 28, 16, 0.94);
+    }
+    .soil-icon { font-size: 1.5rem; margin-bottom: 8px; }
+    .soil-val { font-family:'Outfit',sans-serif; font-size:1.25rem; font-weight:700; color:var(--text-primary); }
+    .soil-name { font-size:0.7rem; color:var(--text-muted); margin-top:3px; text-transform:uppercase; letter-spacing:0.5px; }
+
+    /* ─── Leaflet Map Dark Override ─── */
+    .leaflet-container { background: #060e08 !important; border-radius: 0; }
+    .info {
+      padding: 10px 14px;
+      background: rgba(5,15,8,0.95);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(74,222,128,0.22);
+      border-radius: 10px;
+      color: #d1fae5;
+      font-size: 13px;
+    }
+    .info h4 { margin-bottom: 4px; color: var(--green-bright); font-weight: 700; }
+    .legend { padding: 10px 14px; background: rgba(5,15,8,0.95); backdrop-filter: blur(12px); border: 1px solid rgba(74,222,128,0.22); border-radius: 10px; color: #9ca3af; font-size: 12px; }
+    .legend i { width: 12px; height: 12px; float: left; margin: 2px 8px 0 0; border-radius: 3px; opacity: 0.85; }
+
+    /* ─── Footer ─── */
+    .site-footer {
+      margin-top: 80px;
+      padding: 40px 24px 36px;
+      text-align: center;
+      position: relative;
+    }
+    .site-footer::before {
+      content: '';
+      display: block;
+      width: 100%;
+      max-width: 480px;
+      height: 1px;
+      margin: 0 auto 36px;
+      background: linear-gradient(90deg,
+        transparent 0%,
+        rgba(74,222,128,0.25) 30%,
+        rgba(74,222,128,0.50) 50%,
+        rgba(74,222,128,0.25) 70%,
+        transparent 100%
+      );
+    }
+    .footer-brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      margin-bottom: 14px;
+    }
+    .footer-brand-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 7px;
+      background: linear-gradient(135deg, rgba(34,197,94,0.3), rgba(22,163,74,0.15));
+      border: 1px solid rgba(74,222,128,0.25);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+    }
+    .footer-brand-name {
+      font-family: 'Outfit', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #86efac;
+      letter-spacing: 0.3px;
+    }
+    .footer-tagline {
+      font-size: 0.78rem;
+      color: #374151;
+      letter-spacing: 0.3px;
+      margin-bottom: 10px;
+    }
+    .footer-tagline span {
+      color: rgba(74,222,128,0.55);
+      font-weight: 500;
+    }
+    .footer-dev {
+      font-size: 0.73rem;
+      color: #1f2e22;
+      letter-spacing: 0.5px;
+      transition: color 0.3s ease;
+    }
+    .footer-dev:hover { color: #4ade80; }
+    .footer-dev strong {
+      color: #2d5a3d;
+      font-weight: 600;
+      transition: color 0.3s ease;
+    }
+    .footer-dev:hover strong { color: #86efac; }
+
+    /* ─── Animations ─── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(28px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes pulse-ring {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(74,222,128,0.35); }
+      50%       { box-shadow: 0 0 0 10px rgba(74,222,128,0); }
+    }
+
+    /* ─── Supported Crops Showcase ─── */
+    .crops-showcase {
+      background: rgba(8, 22, 13, 0.88);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid rgba(74,222,128,0.14);
+      border-radius: var(--radius-xl);
+      padding: 40px 48px;
+      box-shadow: 0 0 0 1px rgba(74,222,128,0.05) inset, 0 20px 60px rgba(0,0,0,0.6), var(--shadow-glow);
+      margin-top: 50px;
+      animation: fadeUp 1.1s ease both;
+    }
+    .showcase-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 30px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .showcase-header-icon {
+      width: 46px;
+      height: 46px;
+      border-radius: 13px;
+      background: linear-gradient(135deg, rgba(74,222,128,0.2), rgba(34,197,94,0.1));
+      border: 1px solid rgba(74,222,128,0.25);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+    }
+    .showcase-header-text h2 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+    .showcase-header-text p {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+      line-height: 1.5;
+    }
+    .crops-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 16px;
+    }
+    .crop-grid-item {
+      background: rgba(5, 18, 9, 0.6);
+      border: 1px solid rgba(74,222,128,0.08);
+      border-radius: 16px;
+      padding: 12px;
+      text-align: center;
+      transition: var(--transition);
+      cursor: pointer;
+    }
+    .crop-grid-item:hover {
+      transform: translateY(-5px);
+      border-color: rgba(74,222,128,0.35);
+      background: rgba(8, 26, 14, 0.85);
+      box-shadow: 0 10px 24px rgba(0,0,0,0.4), 0 0 15px rgba(74,222,128,0.12);
+    }
+    .crop-grid-img-wrap {
+      width: 100%;
+      aspect-ratio: 1;
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 10px;
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+    .crop-grid-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.6s ease;
+    }
+    .crop-grid-item:hover .crop-grid-img {
+      transform: scale(1.08);
+    }
+    .crop-grid-name {
+      font-family: 'Outfit', sans-serif;
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      letter-spacing: 0.2px;
+    }
+
+    /* ─── Responsive ─── */
+    @media (max-width: 768px) {
+      .form-glass { padding: 28px 22px; }
+      .input-grid { grid-template-columns: 1fr 1fr; }
+      .result-grid { grid-template-columns: 1fr; }
+      .soil-row { grid-template-columns: repeat(2, 1fr); }
+      .navbar { padding: 14px 20px; }
+      
+      .crops-showcase { padding: 28px 22px; }
+      .crops-grid {
+        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+        gap: 12px;
+      }
+      .crop-grid-name { font-size: 0.8rem; }
+    }
+    @media (max-width: 480px) {
+      .input-grid { grid-template-columns: 1fr; }
+      .soil-row { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+
+<body>
+
+<!-- ─── Navbar ─── -->
+<nav class="navbar">
+  <a class="nav-brand" href="/">
+    <div class="nav-logo">🌿</div>
+    <span class="nav-title">AgriPulse</span>
+  </a>
+  <span class="nav-badge">AI Powered</span>
+</nav>
+
+<div class="page">
+
+  <!-- ─── Hero ─── -->
+  <div class="hero">
+    <div class="hero-eyebrow">
+      <span>🧬</span>
+      Machine Learning · Precision Agriculture
+    </div>
+    <h1>Intelligent Crop<br>Recommendation Engine</h1>
+    <p>Enter your soil composition and environmental data to receive an AI-driven recommendation — engineered for maximum yield and sustainability.</p>
+    <div class="stats-bar">
+      <div class="stat-item">
+        <div class="stat-value">22</div>
+        <div class="stat-label">Crop Types</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value">99.3%</div>
+        <div class="stat-label">Model Accuracy</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value">2,200</div>
+        <div class="stat-label">Training Samples</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value">7</div>
+        <div class="stat-label">Input Parameters</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Input Form ─── -->
+  <div class="form-glass">
+    <div class="form-header">
+      <div class="form-header-icon">🧪</div>
+      <div class="form-header-text">
+        <h2>Soil & Environment Analysis</h2>
+        <p>Enter the measured values from your soil test report</p>
+      </div>
+    </div>
+
+    <form id="predictForm" action="/predict" method="POST" onsubmit="handleSubmit()">
+
+      <!-- Soil Nutrients -->
+      <div class="form-section-label">🌱 &nbsp;Soil Nutrients (ppm)</div>
+      <div class="input-grid">
+
+        <div class="input-wrap">
+          <label class="field-label" for="Nitrogen">Nitrogen (N)</label>
+          <span class="input-icon">🟢</span>
+          <input type="number" id="Nitrogen" name="Nitrogen" placeholder="0–140" step="1" required>
+          <span class="input-unit">ppm</span>
+        </div>
+
+        <div class="input-wrap">
+          <label class="field-label" for="Phosporus">Phosphorus (P)</label>
+          <span class="input-icon">🟡</span>
+          <input type="number" id="Phosporus" name="Phosporus" placeholder="5–145" step="1" required>
+          <span class="input-unit">ppm</span>
+        </div>
+
+        <div class="input-wrap">
+          <label class="field-label" for="Potassium">Potassium (K)</label>
+          <span class="input-icon">🟠</span>
+          <input type="number" id="Potassium" name="Potassium" placeholder="5–205" step="1" required>
+          <span class="input-unit">ppm</span>
+        </div>
+
+      </div>
+
+      <!-- Climate Conditions -->
+      <div class="form-section-label">🌤 &nbsp;Climate Conditions</div>
+      <div class="input-grid">
+
+        <div class="input-wrap">
+          <label class="field-label" for="Temperature">Temperature</label>
+          <span class="input-icon">🌡️</span>
+          <input type="number" id="Temperature" name="Temperature" placeholder="8–43" step="0.01" required>
+          <span class="input-unit">°C</span>
+        </div>
+
+        <div class="input-wrap">
+          <label class="field-label" for="Humidity">Humidity</label>
+          <span class="input-icon">💧</span>
+          <input type="number" id="Humidity" name="Humidity" placeholder="14–99" step="0.01" required>
+          <span class="input-unit">%</span>
+        </div>
+
+        <div class="input-wrap">
+          <label class="field-label" for="pH">Soil pH</label>
+          <span class="input-icon">⚗️</span>
+          <input type="number" id="pH" name="pH" placeholder="3.5–9.9" step="0.01" required>
+          <span class="input-unit">pH</span>
+        </div>
+
+      </div>
+
+      <!-- Rainfall separately -->
+      <div class="form-section-label">🌧 &nbsp;Precipitation</div>
+      <div class="input-grid" style="grid-template-columns: 1fr 2fr;">
+        <div class="input-wrap">
+          <label class="field-label" for="Rainfall">Annual Rainfall</label>
+          <span class="input-icon">🌧️</span>
+          <input type="number" id="Rainfall" name="Rainfall" placeholder="20–300" step="0.01" required>
+          <span class="input-unit">mm</span>
+        </div>
+      </div>
+
+      <button type="submit" class="btn-predict" id="submitBtn">
+        <span id="btn-text">✨ &nbsp;Get Crop Recommendation</span>
+        <div class="spinner" id="spinner"></div>
+      </button>
+
+    </form>
+  </div>
+
+  <!-- ─── Result Section ─── -->
+  {% if result %}
+  <div class="result-section">
+
+    <!-- Soil Mini Cards -->
+    <div class="soil-row">
+      <div class="soil-mini">
+        <div class="soil-icon">🟢</div>
+        <div class="soil-val">{{ request.form.get('Nitrogen', '—') }}</div>
+        <div class="soil-name">Nitrogen</div>
+      </div>
+      <div class="soil-mini">
+        <div class="soil-icon">🟡</div>
+        <div class="soil-val">{{ request.form.get('Phosporus', '—') }}</div>
+        <div class="soil-name">Phosphorus</div>
+      </div>
+      <div class="soil-mini">
+        <div class="soil-icon">🟠</div>
+        <div class="soil-val">{{ request.form.get('Potassium', '—') }}</div>
+        <div class="soil-name">Potassium</div>
+      </div>
+      <div class="soil-mini">
+        <div class="soil-icon">🌡️</div>
+        <div class="soil-val">{{ request.form.get('Temperature', '—') }}°</div>
+        <div class="soil-name">Temperature</div>
+      </div>
+      <div class="soil-mini">
+        <div class="soil-icon">💧</div>
+        <div class="soil-val">{{ request.form.get('Humidity', '—') }}%</div>
+        <div class="soil-name">Humidity</div>
+      </div>
+      <div class="soil-mini">
+        <div class="soil-icon">⚗️</div>
+        <div class="soil-val">{{ request.form.get('pH', '—') }}</div>
+        <div class="soil-name">pH Level</div>
+      </div>
+      <div class="soil-mini">
+        <div class="soil-icon">🌧️</div>
+        <div class="soil-val">{{ request.form.get('Rainfall', '—') }}</div>
+        <div class="soil-name">Rainfall mm</div>
+      </div>
+      <div class="soil-mini" style="border-color:rgba(74,222,128,0.35); background:rgba(74,222,128,0.07);">
+        <div class="soil-icon">🎯</div>
+        <div class="soil-val" style="color:var(--green-bright); font-size:1rem;">{{ crop }}</div>
+        <div class="soil-name">Best Crop</div>
+      </div>
+    </div>
+
+    <!-- Main Result Grid -->
+    <div class="result-grid" style="margin-top: 24px;">
+
+      <!-- Left: Crop Prediction Card -->
+      <div class="crop-card">
+        <div class="crop-image-wrap">
+          <img class="crop-img"
+               src="{{ crop_image }}"
+               onerror="this.onerror=null; this.src='{{ url_for('static', filename='crop.png') }}';"
+               alt="{{ crop }}">
+          <div class="crop-image-overlay"></div>
+          <span class="crop-badge">✅ Recommended</span>
+        </div>
+        <div class="crop-card-body">
+          <div class="crop-name">{{ crop }}</div>
+          <div class="crop-subtitle">Optimal crop for your soil & climate profile</div>
+
+          <div class="confidence-wrap">
+            <svg class="ring-svg" viewBox="0 0 60 60">
+              <circle class="ring-bg" cx="30" cy="30" r="26"/>
+              <circle class="ring-fill" cx="30" cy="30" r="26" id="confRing"/>
+              <text class="ring-text" x="30" y="34" text-anchor="middle" font-family="Outfit" font-size="9" fill="#4ade80">99%</text>
+            </svg>
+            <div class="confidence-detail">
+              <h4>99.3% Confidence</h4>
+              <p>RandomForest · 100 estimators</p>
+            </div>
+          </div>
+
+          <a href="https://en.wikipedia.org/wiki/{{ crop }}" target="_blank" class="crop-action-btn">
+            📖 &nbsp;Learn about {{ crop }} cultivation
+          </a>
+        </div>
+      </div>
+
+      <!-- Right: Map Insights Card -->
+      <div class="insights-card">
+        <div class="insights-header">
+          <h3>🗺️ &nbsp;Cultivation Zones — India</h3>
+          <span>Hover a state for details</span>
+        </div>
+        <div class="map-container">
+          <div id="map"></div>
+        </div>
+        <div class="map-legend-bar">
+          <div class="legend-pill"><span class="legend-dot" style="background:#2e7d32;"></span> High Intensity</div>
+          <div class="legend-pill"><span class="legend-dot" style="background:#ffa726;"></span> Moderate</div>
+          <div class="legend-pill"><span class="legend-dot" style="background:#546e7a;"></span> Low / Other</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ─── Supported Crops Showcase Section ─── -->
+  <section class="crops-showcase">
+    <div class="showcase-header">
+      <div class="showcase-header-icon">🌾</div>
+      <div class="showcase-header-text">
+        <h2>Crops Supported by Our AI Model</h2>
+        <p>Our machine learning engine is trained to recommend 22 specific crop types based on soil chemistry and climatic conditions.</p>
+      </div>
+    </div>
+    
+    <div class="crops-grid">
+      {% set supported_crops = [
+        "Rice", "Maize", "Jute", "Cotton", "Coconut", "Papaya", "Orange",
+        "Apple", "Muskmelon", "Watermelon", "Grapes", "Mango", "Banana",
+        "Pomegranate", "Lentil", "Blackgram", "Mungbean", "Mothbeans",
+        "Pigeonpeas", "Kidneybeans", "Chickpea", "Coffee"
+      ] %}
+      {% for crop_name in supported_crops %}
+      <div class="crop-grid-item" onclick="window.open('https://en.wikipedia.org/wiki/{{ crop_name }}', '_blank')">
+        <div class="crop-grid-img-wrap">
+          <img class="crop-grid-img" 
+               src="/static/crops/{{ crop_name.strip().lower() }}.jpg" 
+               alt="{{ crop_name }}"
+               loading="lazy"
+               onerror="this.onerror=null; this.src='{{ url_for('static', filename='crop.png') }}';">
+        </div>
+        <div class="crop-grid-name">{{ crop_name }}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <div class="footer-brand">
+      <div class="footer-brand-icon">🌱</div>
+      <span class="footer-brand-name">AgriPulse Precision Agriculture &nbsp;·&nbsp; 2026</span>
+    </div>
+    <div class="footer-tagline">Powered by <span>Advanced Machine Learning</span></div>
+    <div class="footer-dev">Developed by <strong>Somil Jaiswal</strong></div>
+  </footer>
+
+</div>
+
+<!-- ─── Scripts ─── -->
+<script>
+  function handleSubmit() {
+    const form = document.getElementById('predictForm');
+    if (!form.checkValidity()) return;
+    document.getElementById('btn-text').style.display = 'none';
+    document.getElementById('spinner').style.display = 'block';
+    document.getElementById('submitBtn').disabled = true;
+  }
+</script>
+
+<script src="{{ url_for('static', filename='js/india_map_data.js') }}"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const cropEl = document.getElementById('predictedCrop');
+    if (cropEl) {
+      initAdvancedMap(cropEl.dataset.crop);
+    }
+  });
+
+  async function initAdvancedMap(crop) {
+    if (!document.getElementById('map')) return;
+    const map = L.map('map', { zoomControl: false, attributionControl: false }).setView([20.5937, 78.9629], 4);
+
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      maxZoom: 19
+    }).addTo(map);
+
+    const highColor   = '#2e7d32';
+    const modColor    = '#ffa726';
+    const lowColor    = '#546e7a';
+
+    function getColor(state) {
+      const zones = window.indiaMapData?.zones?.[crop] || { high: [], moderate: [] };
+      if (zones.high.includes(state))     return highColor;
+      if (zones.moderate.includes(state)) return modColor;
+      return lowColor;
+    }
+
+    function style(f) {
+      return {
+        fillColor: getColor(f.properties.NAME_1),
+        weight: 1, opacity: 1, color: 'rgba(255,255,255,0.15)',
+        fillOpacity: 0.7
+      };
+    }
+
+    const info = L.control();
+    info.onAdd = function() {
+      this._div = L.DomUtil.create('div', 'info');
+      this.update();
+      return this._div;
+    };
+    info.update = function(p) {
+      this._div.innerHTML = '<h4>State Info</h4>' +
+        (p ? '<b>' + p.NAME_1 + '</b><br>' + crop + ' zone' : 'Hover over a state');
+    };
+    info.addTo(map);
+
+    let geojson;
+    function highlight(e) {
+      const l = e.target;
+      l.setStyle({ weight: 2.5, color: '#4ade80', fillOpacity: 0.88 });
+      l.bringToFront();
+      info.update(l.feature.properties);
+    }
+    function reset(e) { geojson.resetStyle(e.target); info.update(); }
+    function onEach(f, l) {
+      l.on({ mouseover: highlight, mouseout: reset });
+    }
+
+    try {
+      const res = await fetch("{{ url_for('static', filename='js/india_state.json') }}");
+      const data = await res.json();
+      geojson = L.geoJson(data, { style, onEachFeature: onEach }).addTo(map);
+      map.fitBounds(geojson.getBounds());
+    } catch (e) {
+      console.error('Map load error:', e);
+    }
+  }
+</script>
+
+<!-- Hidden element to feed crop name to JS -->
+{% if result %}
+<div id="predictedCrop" data-crop="{{ crop }}" style="display:none;"></div>
+{% endif %}
+
+</body>
+</html>
