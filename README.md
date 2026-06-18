@@ -21,7 +21,7 @@
 
 ## 📸 Preview
 <div align="center">
-  <img width="1893" height="897" alt="Screenshot 2026-06-18 212643" src="https://github.com/user-attachments/assets/a56cc9d1-c81e-41be-9dea-8a55ca3d108c" />
+  <img width="1893" height="897" alt="Screenshot 2026-06-18 212643" src="https://github.com/user-attachments/assets/12aeb38c-9996-4db4-812d-fcc4777b07c6" />
 
   <br><br>
   <b>🎯 22 Crop Types &nbsp;&nbsp;|&nbsp;&nbsp; 📈 99.3% Model Accuracy &nbsp;&nbsp;|&nbsp;&nbsp; 📊 2,200 Training Samples</b>
@@ -65,3 +65,46 @@ To run this project on your local machine, follow these steps:
 ```bash
 git clone https://github.com/Somiljaiswal46/smart-crop-recommendation.git
 cd smart-crop-recommendation
+```
+
+**2. Create a Virtual Environment (Recommended)**
+```bash
+python -m venv venv
+# On Windows:
+venv\Scripts\activate
+# On Mac/Linux:
+source venv/bin/activate
+```
+
+**3. Install Dependencies**
+```bash
+pip install -r requirements.txt
+```
+
+**4. Run the Application**
+```bash
+python app.py
+```
+*The app will start running locally at `http://127.0.0.1:5000/`*
+
+---
+
+## 📂 Project Structure
+```text
+📦 smart-crop-recommendation
+ ┣ 📂 static             # CSS, JS, and image assets
+ ┣ 📂 templates          # HTML templates for the web interface
+ ┣ 📜 app.py             # Main Flask application and API endpoints
+ ┣ 📜 model.pkl          # Trained Machine Learning Model
+ ┣ 📜 standscaler.pkl    # Standard Scaler object
+ ┣ 📜 minmaxscaler.pkl   # MinMax Scaler object
+ ┣ 📜 requirements.txt   # Python dependencies required
+ ┣ 📜 vercel.json        # Configuration for Vercel deployment
+ ┗ 📜 README.md          # Project Documentation
+```
+
+---
+
+<div align="center">
+  <b>Developed with ❤️ by <a href="https://github.com/Somiljaiswal46">Somil Jaiswal</a></b>
+</div>
