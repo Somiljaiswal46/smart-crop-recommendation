@@ -1,35 +1,67 @@
-# Smart-Crop-Advisor 🌱
+<h1 align="center">🌾 AgriPulse: Intelligent Crop Recommendation Engine</h1>
 
-A Machine Learning-based precision agriculture tool that recommends the optimal crop to cultivate based on soil nutrients (N, P, K) and climatic conditions (Temperature, Humidity, pH, and Rainfall).
+<div align="center">
+  <img src="https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python">
+  <img src="https://img.shields.io/badge/Flask-000000?style=for-the-badge&logo=flask&logoColor=white" alt="Flask">
+  <img src="https://img.shields.io/badge/scikit_learn-F7931E?style=for-the-badge&logo=scikit-learn&logoColor=white" alt="Scikit-Learn">
+  <img src="https://img.shields.io/badge/Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white" alt="Vercel">
+</div>
 
-## 🚀 Deployment Instructions (Render)
+<br>
 
-To deploy this project to a public URL:
+<p align="center">
+  An advanced AI-powered web application that recommends the most optimal crop to grow based on soil composition and environmental data. Engineered for maximum yield and sustainability.
+</p>
 
-1. **Upload to GitHub**:
-   - Create a new repository on GitHub named `Smart-Crop-Advisor`.
-   - Upload all files from this folder to that repository.
+## 🌟 Live Demo
+**[🚀 Try the Live Application Here](https://crop-recommendation-blue.vercel.app)**  
+*(Click the link above to view the live project)*
 
-2. **Connect to Render**:
-   - Go to [Render.com](https://render.com) and create a free account.
-   - Click **New +** and select **Web Service**.
-   - Connect your GitHub account and select the `Smart-Crop-Advisor` repository.
-   - **Configuration**:
-     - **Runtime**: `Python 3`
-     - **Build Command**: `pip install -r requirements.txt`
-     - **Start Command**: `gunicorn app:app`
-   - Click **Deploy Web Service**.
+---
 
-3. **Your Link**:
-   - Once the build is finished, Render will provide you with a public URL (e.g., `https://smart-crop-advisor.onrender.com`).
+## 📸 Preview
+<div align="center">
+  <img width="1893" height="897" alt="Screenshot 2026-06-18 212643" src="https://github.com/user-attachments/assets/a56cc9d1-c81e-41be-9dea-8a55ca3d108c" />
 
-## 🛠️ Technology Stack
-- **Backend**: Flask (Python)
-- **Machine Learning**: Scikit-Learn
-- **Data Handling**: Pandas, Numpy
-- **Frontend**: HTML/CSS (Glassmorphic Design)
+  <br><br>
+  <b>🎯 22 Crop Types &nbsp;&nbsp;|&nbsp;&nbsp; 📈 99.3% Model Accuracy &nbsp;&nbsp;|&nbsp;&nbsp; 📊 2,200 Training Samples</b>
+</div>
 
-## 📊 Features
-- Predicts 22 different types of crops.
-- Real-time soil and weather data input.
-- Visual crop recommendations with images.
+---
+
+## 🚀 Features
+- **Highly Accurate Predictions:** Achieved **99.3%** accuracy using state-of-the-art Machine Learning models.
+- **Modern User Interface:** A sleek, premium, and fully responsive web UI tailored for precision agriculture.
+- **Real-Time Analysis:** Instant, AI-driven recommendations based on comprehensive soil test reports.
+- **Cloud Deployed:** Seamlessly hosted and available globally via Vercel.
+
+## 🛠️ Tech Stack
+- **Backend:** Python 3, Flask
+- **Machine Learning:** Scikit-Learn, Pandas, NumPy
+- **Frontend:** HTML5, CSS3, JavaScript
+- **Deployment:** Vercel
+
+---
+
+## 🧠 How It Works
+The recommendation engine analyzes **7 key environmental and soil parameters**:
+1. **Nitrogen (N)** ratio in soil
+2. **Phosphorus (P)** ratio in soil
+3. **Potassium (K)** ratio in soil
+4. **Temperature** (in °C)
+5. **Humidity** (in %)
+6. **pH Value** of the soil
+7. **Rainfall** (in mm)
+
+Based on these measured inputs, the trained ML model instantly predicts the most suitable crop for your specific conditions out of 22 different categories.
+
+---
+
+## 💻 Local Installation & Setup
+
+To run this project on your local machine, follow these steps:
+
+**1. Clone the repository**
+```bash
+git clone https://github.com/Somiljaiswal46/smart-crop-recommendation.git
+cd smart-crop-recommendation
