@@ -14,7 +14,7 @@
 </p>
 
 ## 🌟 Live Demo
-**[🚀 Try the Live Application Here](https://crop-recommendation-blue.vercel.app)**  
+**[🚀 Try the Live Application Here](https://smart-crop-recommendation-tau.vercel.app/)**  
 *(Click the link above to view the live project)*
 
 ---
